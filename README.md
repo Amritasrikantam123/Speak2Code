@@ -1,19 +1,19 @@
-# MiniLang Compiler
+# Speak2Code
 
 A natural language to C++ compiler that translates plain English statements into executable C++ code. Write programs the way you'd explain them to a person — MiniLang handles the rest.
 
 ## Features
 
-- **Natural Language Input**: Write code in plain English
-- **C++ Code Generation**: Outputs clean, compilable C++ with `#include <iostream>` and `int main()`
-- **Interactive Web UI**: Real-time compilation and code visualization
+* **Natural Language Input**: Write code in plain English
+* **C++ Code Generation**: Outputs clean, compilable C++ with `#include <iostream>` and `int main()`
+* **Interactive Web UI**: Real-time compilation and code visualization
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- npm
+* Node.js (v14 or higher)
+* npm
 
 ### Installation
 
@@ -39,6 +39,7 @@ The compiler will be available at `http://localhost:5000`
 ### Basic Syntax
 
 **Variable Declaration:**
+
 ```
 create variable x with value 5
 declare y be 10
@@ -46,6 +47,7 @@ let z with value 3
 ```
 
 **Assignment & Arithmetic:**
+
 ```
 set result to x plus y
 assign sum to a plus b minus c
@@ -53,14 +55,16 @@ set product to x times y
 ```
 
 **Operators:**
-- `plus` → `+`
-- `minus` → `-`
-- `times` → `*`
-- `divide` → `/`
-- `modulo` / `mod` → `%`
-- `power` → `**`
+
+* `plus` → `+`
+* `minus` → `-`
+* `times` → `*`
+* `divide` → `/`
+* `modulo` / `mod` → `%`
+* `power` → `**`
 
 **Print / Output:**
+
 ```
 print x
 show result
@@ -68,6 +72,7 @@ display the value of y
 ```
 
 **Conditionals:**
+
 ```
 if x greater than 5
   print x
@@ -75,6 +80,7 @@ end if
 ```
 
 **Loops:**
+
 ```
 while i less than 10
   set i to i plus 1
@@ -101,6 +107,7 @@ print y
 ```
 
 This generates:
+
 ```cpp
 #include <iostream>
 using namespace std;
@@ -139,6 +146,7 @@ int main() {
 Compiles natural language code to C++.
 
 **Request Body:**
+
 ```json
 {
   "source": "create variable x with value 5\nprint x"
@@ -146,6 +154,7 @@ Compiles natural language code to C++.
 ```
 
 **Response:**
+
 ```json
 {
   "tokens": ["create", "variable", "x", "with", "value", "5", "print", "x"],
@@ -158,8 +167,8 @@ Compiles natural language code to C++.
 
 ## Built With
 
-- **Express.js** - Web framework
-- **Node.js** - Runtime environment
+* **Express.js** - Web framework
+* **Node.js** - Runtime environment
 
 ## License
 
@@ -167,4 +176,4 @@ MIT
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests!
+# Feel free to submit issues and enhancement requests!
