@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MiniLang — NL to Code Compiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* ── reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #f5f4f0;
+    --surface:  #ffffff;
+    --border:   #e2e0d8;
+    --border2:  #d0cdc4;
+    --ink:      #1a1916;
+    --ink2:     #5a5750;
+    --ink3:     #9a9790;
+    --accent:   #2563eb;
+    --accent-l: #eff4ff;
+    --accent-d: #1d4ed8;
+    --green:    #16a34a;
+    --green-l:  #f0fdf4;
+    --red:      #dc2626;
+    --red-l:    #fef2f2;
+    --amber:    #d97706;
+    --amber-l:  #fffbeb;
+    --purple:   #7c3aed;
+    --purple-l: #f5f3ff;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'Syne', sans-serif;
+    --radius:   8px;
+    --shadow:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+    --shadow-lg:0 4px 16px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.06);
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); }
+
+  /* ── layout ── */
+  .app {
+    display: grid;
+    grid-template-rows: 52px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── header ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    z-index: 10;
+  }
+  .logo { font-size: 15px; font-weight: 800; letter-spacing: -.3px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .logo-badge {
+    background: var(--accent); color: #fff;
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 4px; letter-spacing: .5px;
+  }
+  .header-note { font-family: var(--mono); font-size: 11px; color: var(--ink3); }
+
+  /* ── main split ── */
+  .main {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* ── left panel ── */
+  .left-panel {
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .panel-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--ink2); }
+
+  #editor {
+    flex: 1;
+    width: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: var(--surface);
+    tab-size: 2;
+  }
+  #editor::placeholder { color: var(--ink3); }
+  #editor:focus { background: #fafaf8; }
+
+  .left-footer {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+
+  /* ── buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border: none; border-radius: var(--radius);
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all .15s ease;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-d); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost { background: transparent; color: var(--ink2); border: 1px solid var(--border2); }
+  .btn-ghost:hover { background: var(--bg); color: var(--ink); }
+  .btn-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; padding: 0;
+    border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--surface); color: var(--ink2);
+    cursor: pointer; transition: all .15s;
+  }
+  .btn-icon:hover { background: var(--bg); color: var(--ink); }
+  .btn-icon svg { width: 14px; height: 14px; }
+
+  /* ── loading spinner ── */
+  .spinner {
+    display: none;
+    width: 15px; height: 15px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading .spinner { display: block; }
+  .loading .run-text { display: none; }
+
+  /* ── right panel ── */
+  .right-panel {
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* ── tabs ── */
+  .tabs-nav {
+    display: flex; align-items: center;
+    padding: 0 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    gap: 2px;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .tabs-nav::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 13px 14px 11px;
+    font-family: var(--sans); font-size: 12px; font-weight: 600;
+    color: var(--ink3); background: none; border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer; white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; opacity: .5;
+  }
+
+  .tabs-content { flex: 1; overflow: hidden; position: relative; }
+  .tab-pane {
+    position: absolute; inset: 0;
+    overflow-y: auto; padding: 20px;
+    display: none;
+    animation: fadeIn .2s ease;
+  }
+  .tab-pane.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── empty state ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; min-height: 200px; color: var(--ink3); text-align: center;
+  }
+  .empty-state svg { width: 36px; height: 36px; opacity: .3; }
+  .empty-state p { font-size: 13px; }
+
+  /* ── cards ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    overflow: hidden; margin-bottom: 12px;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: #fafaf8;
+  }
+  .card-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--ink2); }
+  .card-body { padding: 14px; }
+
+  /* ── token chips ── */
+  .token-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .token-chip {
+    font-family: var(--mono); font-size: 12px;
+    padding: 3px 9px; border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: var(--accent-l); color: var(--accent-d);
+    font-weight: 500;
+  }
+  .token-chip.num { background: var(--amber-l); color: var(--amber); border-color: #fde68a; }
+  .token-chip.kw { background: var(--purple-l); color: var(--purple); border-color: #ddd6fe; }
+  .token-chip.id { background: var(--green-l); color: var(--green); border-color: #bbf7d0; }
+
+  /* ── AST tree ── */
+  .ast-tree { font-family: var(--mono); font-size: 12px; line-height: 1.8; }
+  .ast-node { }
+  .ast-row {
+    display: flex; align-items: flex-start; gap: 6px;
+    padding: 2px 0;
+  }
+  .ast-connector { color: var(--ink3); user-select: none; }
+  .ast-type {
+    display: inline-block;
+    padding: 1px 7px; border-radius: 4px;
+    font-size: 11px; font-weight: 600;
+    background: var(--accent-l); color: var(--accent-d);
+  }
+  .ast-type.t-declare { background: var(--green-l); color: var(--green); }
+  .ast-type.t-assign  { background: var(--amber-l); color: var(--amber); }
+  .ast-type.t-print   { background: var(--purple-l); color: var(--purple); }
+  .ast-type.t-if      { background: #fef3c7; color: #92400e; }
+  .ast-type.t-while   { background: #fce7f3; color: #9d174d; }
+  .ast-val { color: var(--ink2); }
+  .ast-children { margin-left: 20px; border-left: 1px dashed var(--border2); padding-left: 12px; }
+
+  /* ── TAC / code blocks ── */
+  .mono-block {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.75;
+    color: var(--ink);
+    background: #f8f8f6;
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .tac-line { display: block; }
+  .tac-label  { color: var(--purple); font-weight: 600; }
+  .tac-op     { color: var(--accent); }
+  .tac-jump   { color: #d97706; }
+  .tac-assign { color: var(--green); }
+  .tac-io     { color: #0891b2; }
+
+  /* ── DAG ── */
+  .dag-grid { display: flex; flex-direction: column; gap: 6px; }
+  .dag-row {
+    display: grid; grid-template-columns: 90px 1fr 80px;
+    align-items: center; gap: 10px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--mono); font-size: 12px;
+  }
+  .dag-node-name { font-weight: 600; color: var(--ink); }
+  .dag-dep { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dag-badge {
+    justify-self: end;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .dag-badge.compute { background: var(--amber-l); color: var(--amber); }
+  .dag-badge.store   { background: var(--green-l); color: var(--green); }
+  .dag-badge.control { background: #fce7f3; color: #9d174d; }
+  .dag-badge.label   { background: var(--purple-l); color: var(--purple); }
+  .dag-badge.io      { background: #e0f2fe; color: #0369a1; }
+
+  /* ── final code panel ── */
+  .code-output-wrap { display: flex; flex-direction: column; gap: 12px; }
+  .code-copy-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px;
+    background: #f8f8f6;
+    border-bottom: 1px solid var(--border);
+  }
+  .code-copy-label { font-family: var(--mono); font-size: 11px; color: var(--ink3); }
+  .output-block {
+    font-family: var(--mono); font-size: 13px; line-height: 1.7;
+    padding: 14px 16px; border-radius: 6px;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .output-ok { background: var(--green-l); color: #15803d; border: 1px solid #bbf7d0; }
+  .output-err { background: var(--red-l); color: var(--red); border: 1px solid #fecaca; }
+  .output-empty { background: var(--bg); color: var(--ink3); border: 1px dashed var(--border2); font-style: italic; }
+
+  /* ── guidelines ── */
+  .guide-section { margin-bottom: 20px; }
+  .guide-section h3 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+  .guide-section p, .guide-section li { font-size: 13px; line-height: 1.65; color: var(--ink2); }
+  .guide-section ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+  .guide-section code {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--accent-l); color: var(--accent-d);
+    padding: 1px 5px; border-radius: 3px;
+  }
+  .guide-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .guide-table th { text-align: left; padding: 7px 10px; background: var(--bg); color: var(--ink2); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid var(--border); }
+  .guide-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--ink); }
+  .guide-table td:first-child { font-family: var(--mono); font-size: 12px; color: var(--accent-d); }
+  .guide-table tr:last-child td { border-bottom: none; }
+
+  /* ── status bar ── */
+  .status-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--ink3);
+    flex-shrink: 0;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); }
+  .status-dot.ok { background: var(--green); }
+  .status-dot.err { background: var(--red); }
+
+  /* ── toast ── */
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--ink); color: #fff;
+    font-family: var(--mono); font-size: 12px;
+    padding: 8px 16px; border-radius: var(--radius);
+    opacity: 0; transform: translateY(8px);
+    transition: all .2s ease; pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--ink3); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-badge">NL→C++</span>
+      MiniLang Compiler
+    </div>
+    <div class="header-note">Natural Language → C++</div>
+  </header>
+
+  <!-- MAIN SPLIT -->
+  <div class="main">
+
+    <!-- LEFT: editor -->
+    <div class="left-panel">
+      <div class="panel-header">
+        <span class="panel-title">Source Input</span>
+        <button class="btn-icon" id="clearBtn" title="Clear editor">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"/>
+          </svg>
+        </button>
+      </div>
+      <textarea id="editor" spellcheck="false"
+        placeholder="Write your program in plain English…
+
+Example:
+create variable x with value 5
+create variable y with value 3
+set result to x plus y
+print result
+
+if x greater than 4
+  print x
+end if
+
+while y less than 10
+  set y to y plus 1
+end while
+print y"></textarea>
+      <div class="left-footer">
+        <button class="btn btn-primary" id="runBtn">
+          <span class="run-text">▶ Compile</span>
+          <span class="spinner"></span>
+        </button>
+        <button class="btn btn-ghost" id="exampleBtn">Load Example</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: tabs -->
+    <div class="right-panel">
+      <nav class="tabs-nav">
+        <button class="tab-btn active" data-tab="guidelines">
+          <span class="tab-dot"></span> Guidelines
+        </button>
+        <button class="tab-btn" data-tab="tokens">
+          <span class="tab-dot"></span> Tokens
+        </button>
+        <button class="tab-btn" data-tab="ast">
+          <span class="tab-dot"></span> AST
+        </button>
+        <button class="tab-btn" data-tab="dag">
+          <span class="tab-dot"></span> DAG
+        </button>
+        <button class="tab-btn" data-tab="tac">
+          <span class="tab-dot"></span> TAC
+        </button>
+        <button class="tab-btn" data-tab="code">
+          <span class="tab-dot"></span> Code
+        </button>
+      </nav>
+
+      <div class="tabs-content">
+
+        <!-- TAB: Guidelines -->
+        <div class="tab-pane active" id="tab-guidelines">
+          <div class="guide-section">
+            <h3>What is MiniLang?</h3>
+            <p>MiniLang is a natural language compiler that translates plain-English statements into C++ code. Write programs as you'd explain them to a person — MiniLang handles the rest.</p>
+          </div>
+          <div class="guide-section">
+            <h3>Variable Declaration</h3>
+            <ul>
+              <li>Use <code>create</code>, <code>declare</code>, <code>let</code>, or <code>make</code></li>
+              <li>Example: <code>create variable x with value 5</code></li>
+              <li>Example: <code>let y be 10</code></li>
+            </ul>
+          </div>
+          <div class="guide-section">
+            <h3>Assignment &amp; Arithmetic</h3>
+            <ul>
+              <li>Use <code>set</code>, <code>assign</code>, <code>update</code>, or <code>evaluate</code></li>
+              <li>Example: <code>set result to x plus y</code></li>
+              <li>Example: <code>assign z to a times b</code></li>
+            </ul>
+          </div>
+          <div class="guide-section">
+            <h3>Operators</h3>
+            <div class="card">
+              <table class="guide-table">
+                <thead><tr><th>Word</th><th>Symbol</th><th>Word</th><th>Symbol</th></tr></thead>
+                <tbody>
+                  <tr><td>plus</td><td>+</td><td>minus</td><td>−</td></tr>
+                  <tr><td>times</td><td>×</td><td>divide</td><td>÷</td></tr>
+                  <tr><td>modulo / mod</td><td>%</td><td>power</td><td>**</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="guide-section">
+            <h3>Print / Output</h3>
+            <ul>
+              <li>Use <code>print</code>, <code>show</code>, <code>display</code>, or <code>output</code></li>
+              <li>Example: <code>print result</code></li>
+              <li>Example: <code>show the value of x</code></li>
+            </ul>
+          </div>
+          <div class="guide-section">
+            <h3>If Statements</h3>
+            <ul>
+              <li>Start with <code>if</code>, end with <code>end if</code></li>
+              <li>Comparisons: <code>greater than</code>, <code>less than</code>, <code>equal to</code>, <code>not equal</code></li>
+              <li>Example: <code>if x greater than 5</code> … <code>end if</code></li>
+            </ul>
+          </div>
+          <div class="guide-section">
+            <h3>While Loops</h3>
+            <ul>
+              <li>Start with <code>while</code>, end with <code>end while</code></li>
+              <li>Example: <code>while i less than 10</code> … <code>end while</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- TAB: Tokens -->
+        <div class="tab-pane" id="tab-tokens">
+          <div id="tokens-content">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              <p>Run the compiler to see tokens</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: AST -->
+        <div class="tab-pane" id="tab-ast">
+          <div id="ast-content">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v3M12 18v3M5.6 6.4l2.1 2.1M16.3 15.5l2.1 2.1M3 12h3M18 12h3M5.6 17.6l2.1-2.1M16.3 8.5l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>
+              <p>Run the compiler to see the AST</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: DAG -->
+        <div class="tab-pane" id="tab-dag">
+          <div id="dag-content">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12l10-5.5M7 12l10 5.5"/></svg>
+              <p>Run the compiler to see the DAG</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: TAC -->
+        <div class="tab-pane" id="tab-tac">
+          <div id="tac-content">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
+              <p>Run the compiler to see TAC</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: Code -->
+        <div class="tab-pane" id="tab-code">
+          <div id="code-content">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6l-4 6 4 6M16 6l4 6-4 6"/></svg>
+              <p>Run the compiler to see generated code</p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- tabs-content -->
+
+      <!-- status bar -->
+      <div class="status-bar" id="statusBar">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Ready</span>
+      </div>
+    </div><!-- right-panel -->
+
+  </div><!-- main -->
+</div><!-- app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── helpers ──────────────────────────────────────────────────────────
+const KEYWORDS_SET = new Set(['create','declare','let','make','set','assign','update','evaluate','print','show','display','output','to','with','value','be','plus','minus','times','divide','modulo','mod','power','variable','if','while','end','greater','less','equal','equals','not','than','is']);
+
+function classifyToken(t) {
+  if (/^\d+$/.test(t)) return 'num';
+  if (KEYWORDS_SET.has(t)) return 'kw';
+  return 'id';
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Copied!'));
+}
+
+function iconCopy() {
+  return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14">
+    <rect x="5" y="5" width="8" height="9" rx="1"/><path d="M3 11V2h8"/>
+  </svg>`;
+}
+
+// ── tabs ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── example ───────────────────────────────────────────────────────────
+document.getElementById('exampleBtn').addEventListener('click', () => {
+  document.getElementById('editor').value =
+`create variable x with value 5
+create variable y with value 3
+set result to x plus y
+print result
+if x greater than 4
+print x
+end if
+while y less than 8
+set y to y plus 1
+end while
+print y`;
+});
+
+// ── clear ─────────────────────────────────────────────────────────────
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('editor').value = '';
+  setStatus('', '');
+});
+
+// ── render helpers ────────────────────────────────────────────────────
+function renderTokens(tokens) {
+  const div = document.getElementById('tokens-content');
+  const total = tokens.length;
+  const nums = tokens.filter(t => /^\d+$/.test(t)).length;
+  const kws  = tokens.filter(t => KEYWORDS_SET.has(t) && !/^\d+$/.test(t)).length;
+  const ids  = total - nums - kws;
+
+  div.innerHTML = `
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header"><span class="card-label">Summary</span></div>
+      <div class="card-body" style="display:flex;gap:16px;flex-wrap:wrap">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink2)">Total: <strong style="color:var(--ink)">${total}</strong></div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--purple)">Keywords: <strong>${kws}</strong></div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--green)">Identifiers: <strong>${ids}</strong></div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--amber)">Numbers: <strong>${nums}</strong></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-label">Token Stream</span></div>
+      <div class="card-body">
+        <div class="token-list">${tokens.map(t => `<span class="token-chip ${classifyToken(t)}">${t}</span>`).join('')}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--ink3);display:flex;gap:12px">
+      <span style="color:var(--purple)">■ keyword</span>
+      <span style="color:var(--green)">■ identifier</span>
+      <span style="color:var(--amber)">■ number</span>
+    </div>`;
+}
+
+function renderASTNode(node, depth) {
+  const typeClass = `t-${node.type}`;
+  const children = node.children || [];
+  const hasASTChildren = children.some(c => c && typeof c === 'object' && c.type);
+  const leafChildren = children.filter(c => !(c && typeof c === 'object' && c.type));
+  const astChildren = children.filter(c => c && typeof c === 'object' && c.type);
+
+  const valStr = node.value ? `<span class="ast-val"> — ${node.value}</span>` : '';
+  const leafStr = leafChildren.length
+    ? leafChildren.map(c => `<span class="ast-val"> → <code style="font-family:var(--mono);font-size:11px">${c}</code></span>`).join('')
+    : '';
+
+  return `<div class="ast-node">
+    <div class="ast-row">
+      <span class="ast-connector">${depth > 0 ? '└─' : '◆'}</span>
+      <span class="ast-type ${typeClass}">${node.type}</span>
+      ${valStr}${leafStr}
+    </div>
+    ${astChildren.length ? `<div class="ast-children">${astChildren.map(c => renderASTNode(c, depth+1)).join('')}</div>` : ''}
+  </div>`;
+}
+
+function renderAST(astNodes) {
+  const div = document.getElementById('ast-content');
+  if (!astNodes.length) {
+    div.innerHTML = `<div class="empty-state"><p>No AST nodes produced. Check your source.</p></div>`;
+    return;
+  }
+  div.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="card-label">AST — ${astNodes.length} top-level node${astNodes.length>1?'s':''}</span></div>
+      <div class="card-body">
+        <div class="ast-tree">${astNodes.map(n => renderASTNode(n, 0)).join('')}</div>
+      </div>
+    </div>`;
+}
+
+function colorTACLine(line) {
+  if (/^L\d+:/.test(line)) return `<span class="tac-label">${escHtml(line)}</span>`;
+  if (line.startsWith('ifFalse')) return `<span class="tac-jump">${escHtml(line)}</span>`;
+  if (line.startsWith('goto')) return `<span class="tac-jump">${escHtml(line)}</span>`;
+  if (line.startsWith('print ')) return `<span class="tac-io">${escHtml(line)}</span>`;
+  if (line.includes('=')) {
+    const [lhs, ...rhs] = line.split('=');
+    return `<span class="tac-assign">${escHtml(lhs.trim())}</span> = <span class="tac-op">${escHtml(rhs.join('=').trim())}</span>`;
+  }
+  return escHtml(line);
+}
+
+function renderTAC(tacLines) {
+  const div = document.getElementById('tac-content');
+  if (!tacLines.length) {
+    div.innerHTML = `<div class="empty-state"><p>No TAC generated.</p></div>`; return;
+  }
+  div.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-label">Three-Address Code — ${tacLines.length} instructions</span>
+        <button class="btn-icon" title="Copy TAC" onclick="copyText(${JSON.stringify(tacLines.join('\n'))})">${iconCopy()}</button>
+      </div>
+      <div class="card-body">
+        <div class="mono-block">${tacLines.map((l,i) => `<span class="tac-line"><span style="color:var(--ink3);user-select:none;margin-right:12px;display:inline-block;min-width:22px;text-align:right">${i+1}</span>${colorTACLine(l)}</span>`).join('\n')}</div>
+      </div>
+    </div>`;
+}
+
+function renderDAG(dagNodes) {
+  const div = document.getElementById('dag-content');
+  if (!dagNodes.length) {
+    div.innerHTML = `<div class="empty-state"><p>No DAG nodes.</p></div>`; return;
+  }
+  const rows = dagNodes.map(n => `
+    <div class="dag-row">
+      <span class="dag-node-name">${escHtml(n.node)}</span>
+      <span class="dag-dep" title="${escHtml(n.dependency)}">${escHtml(n.dependency)}</span>
+      <span class="dag-badge ${n.type}">${n.type}</span>
+    </div>`).join('');
+  div.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="card-label">DAG — ${dagNodes.length} nodes</span></div>
+      <div class="card-body" style="padding:10px">
+        <div style="display:grid;grid-template-columns:90px 1fr 80px;gap:0;padding:0 2px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3)">
+          <span>Node</span><span>Dependency / Expression</span><span style="justify-self:end">Type</span>
+        </div>
+        <div class="dag-grid">${rows}</div>
+      </div>
+    </div>`;
+}
+
+function renderCode(code) {
+  const div = document.getElementById('code-content');
+  
+  if (!code) {
+    div.innerHTML = `<div class="empty-state"><p>No code generated.</p></div>`;
+    return;
+  }
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'btn-icon';
+  copyBtn.title = 'Copy code';
+  copyBtn.innerHTML = iconCopy();
+  copyBtn.onclick = () => copyText(code);
+
+  div.innerHTML = '';
+  
+  const card = document.createElement('div');
+  card.className = 'card';
+  
+  const header = document.createElement('div');
+  header.className = 'card-header';
+  header.innerHTML = '<span class="card-label">generated c++</span>';
+  header.appendChild(copyBtn);
+  
+  const body = document.createElement('div');
+  body.className = 'card-body';
+  
+  const pre = document.createElement('pre');
+  pre.style.cssText = 'margin:0;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--ink);background:var(--surface);padding:16px;border-radius:6px;overflow-x:auto';
+  pre.textContent = code;
+  
+  body.appendChild(pre);
+  card.appendChild(header);
+  card.appendChild(body);
+  div.appendChild(card);
+}
+
+function syntaxHL(line) {
+  // light C++ syntax highlight
+  return line
+    .replace(/\b(if|while|for|int|cout|cin|endl|return|include|using|namespace|std)\b/g, `<span style="color:var(--purple);font-weight:600">$1</span>`)
+    .replace(/(&gt;=|&lt;=|==|!=|&gt;|&lt;)/g, `<span style="color:var(--accent)">$1</span>`)
+    .replace(/(\d+)/g, `<span style="color:var(--amber)">$1</span>`);
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setStatus(type, msg) {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = 'status-dot' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
+  text.textContent = msg || 'Ready';
+}
+
+function switchToTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+}
+
+// ── run ───────────────────────────────────────────────────────────────
+document.getElementById('runBtn').addEventListener('click', async () => {
+  const source = document.getElementById('editor').value.trim();
+  if (!source) { toast('Nothing to compile'); return; }
+
+  const btn = document.getElementById('runBtn');
+  btn.classList.add('loading'); btn.disabled = true;
+  setStatus('', 'Compiling…');
+
+  try {
+    const res = await fetch('/compile', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({source}),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setStatus('err', 'Compiler error');
+      toast('Error: ' + (data.error || 'Unknown error'));
+      return;
+    }
+
+    renderTokens(data.tokens);
+    renderAST(data.ast);
+    renderTAC(data.tac);
+    renderDAG(data.dag);
+    renderCode(data.code);
+
+    setStatus('ok', `OK — ${data.tokens.length} tokens, ${data.ast.length} AST nodes, ${data.tac.length} TAC lines`);
+    switchToTab('code');
+
+  } catch (e) {
+    setStatus('err', 'Network error');
+    toast('Network error');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+});
+
+// allow Ctrl+Enter to run
+document.getElementById('editor').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    document.getElementById('runBtn').click();
+  }
+});
+</script>
+</body>
+</html>
