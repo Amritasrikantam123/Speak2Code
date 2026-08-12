@@ -169,11 +169,3 @@ Compiles natural language code to C++.
 
 * **Express.js** - Web framework
 * **Node.js** - Runtime environment
-
-## License
-
-MIT
-
-## Contributing
-
-# Feel free to submit issues and enhancement requests!
