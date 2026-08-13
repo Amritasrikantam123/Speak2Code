@@ -32,7 +32,7 @@ Start the development server:
 npm start
 ```
 
-The compiler will be available at `http://localhost:5000`
+The backend will be available at `http://localhost:5000`
 
 ## Usage
 
