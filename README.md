@@ -1,6 +1,6 @@
 # Speak2Code
 
-A natural language to C++ compiler that translates plain English statements into executable C++ code. Write programs the way you'd explain them to a person — MiniLang handles the rest.
+A natural language to C++ platform that translates plain English statements into executable C++ code. Write programs the way you'd explain them to a person — MiniLang handles the rest.
 
 ## Features
 
